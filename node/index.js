@@ -1,38 +1,73 @@
-const express = require('express')();
-const port = 9001;
-
-const config = {
-  host: 'db',
-  user: 'root',
-  password: 'root',
-  database: 'nodedb'
-};
-
+const express = require('express');
 const mysql = require('mysql');
 
-const connection = mysql.createConnection(config);
+const app = express();
+const PORT = 3000;
 
-const insertSQL = "INSERT INTO people (name) VALUES ('Izaltino')";
-const selectSQL = "SELECT * FROM people";
+const dbConfig = {
+  host: 'db',
+  user: 'root',
+  password: 'password',
+  database: 'nodedb',
+};
 
-connection.query(insertSQL, (err, result) => {
-  if (err) throw err;
-  connection.query(selectSQL, (err, rows) => {
-    if (err) throw err;
-    const nameList = rows.map(row => `<li>ID: ${row.id}, NAME:${row.name}</li>`).join('');
-    express.get('/', (req, res) => {
-      res.send(`
-        <h1>Full Cycle Rocks!</h1>
-        <ul>
-          ${nameList}
-        </ul>
-      `);
-    });
+app.get('/', (_req, res) => {
+  InsertName(res);
+});
 
-    express.listen(port, () => {
-      console.log('Rodando, porta: ', port);
-    });
+app.listen(PORT, () => {
+  console.log(`Application running on Port...: ${PORT} 🚀`);
+});
+
+async function InsertName(res) {
+  const connection = mysql.createConnection(dbConfig);
+  const INSERT_QUERY = `INSERT INTO people(name) values('Izaltino')`;
+
+  connection.query(INSERT_QUERY, (error, _results, _fields) => {
+    if (error) {
+      console.log(`Error inserting name: ${error}`);
+      res.status(500).send('Error inserting name');
+      return;
+    }
+
+    console.log(`Izaltino inserted successfully in the database!`);
+    getAll(res, connection);
+  });
+}
+
+function getAll(res, connection) {
+  const SELECT_QUERY = `SELECT id, name FROM people`;
+
+  connection.query(SELECT_QUERY, (error, results) => {
+    if (error) {
+      console.log(`Error getting people: ${error}`);
+      res.status(500).send('Error getting people');
+      return;
+    }
+
+    const tableRows = results
+      .map(
+        (person) => `
+        <tr>
+          <td>${person.id}</td>
+          <td>${person.name}</td>
+        </tr>
+      `
+      )
+      .join('');
+    const table = `
+      <table>
+        <tr>
+          <th>#</th>
+          <th>Name</th>
+        </tr>${tableRows}
+      </table>`;
+
+    res.send(`
+      <h1>Full Cycle Rocks!</h1>
+      ${table}
+    `);
 
     connection.end();
   });
-});
+}
